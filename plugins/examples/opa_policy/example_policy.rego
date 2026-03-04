@@ -3,6 +3,24 @@
 # This policy demonstrates how to write Rego rules that evaluate
 # the JSON structure produced by MessageView.to_dict()
 #
+# The serialized view has this structure:
+#   {
+#     "kind": "tool_call",
+#     "role": "assistant",
+#     "is_pre": true,
+#     "is_post": false,
+#     "action": "invoke",
+#     "uri": "tool://_/read_file",
+#     "name": "read_file",
+#     "content": "...",
+#     "extensions": {
+#       "subject": {"id": "...", "type": "user", "roles": [...], "permissions": [...]},
+#       "environment": "production",
+#       "labels": [...],
+#       "headers": {...}
+#     }
+#   }
+#
 # Deploy to OPA:
 #   opa run --server example_policy.rego
 #
@@ -50,7 +68,7 @@ allow {
 # Allow tools for admin users
 allow {
     input.kind == "tool_call"
-    "admin" in input.context.principal.roles
+    "admin" in input.extensions.subject.roles
 }
 
 # Allow resources from safe paths
@@ -88,7 +106,7 @@ dangerous_tools := {
 deny[msg] {
     input.kind == "tool_call"
     input.name == "execute_shell"
-    input.context.environment == "production"
+    input.extensions.environment == "production"
     msg := "Shell execution is blocked in production environment"
 }
 
@@ -118,7 +136,7 @@ sensitive_path(uri) {
 # Deny large content without admin role
 deny[msg] {
     input.size_bytes > 1048576  # 1MB
-    not "admin" in input.context.principal.roles
+    not "admin" in input.extensions.subject.roles
     msg := sprintf("Content size %d bytes exceeds limit for non-admin users", [input.size_bytes])
 }
 
@@ -162,7 +180,7 @@ audit[entry] {
         "type": "tool_call",
         "name": input.name,
         "uri": input.uri,
-        "principal": input.context.principal.id,
-        "environment": input.context.environment,
+        "subject_id": input.extensions.subject.id,
+        "environment": input.extensions.environment,
     }
 }
