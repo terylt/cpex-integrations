@@ -1,0 +1,44 @@
+# Plugin configuration for CMF example plugins
+# Usage: litellm --config integrations/litellm/proxy_config.yaml
+
+plugin_settings:
+  parallel_execution_within_band: false
+  plugin_timeout: 30
+  fail_on_plugin_error: true
+
+plugins:
+  # Content Scanner - checks for PII/secrets
+  - name: "ContentScanner"
+    kind: "plugins.examples.content_scanner.content_scanner.ContentScannerPlugin"
+    description: "Scans message content for sensitive patterns using CMF MessageView"
+    version: "0.1.0"
+    author: "Teryl Taylor"
+    hooks: ["evaluate"]
+    tags: ["security", "pii", "cmf"]
+    mode: "enforce"
+    priority: 10
+    conditions: []
+    config:
+      log_matches: true
+      include_match_in_metadata: false
+      patterns:
+        - name: "ssn"
+          pattern: "\\b\\d{3}-\\d{2}-\\d{4}\\b"
+          severity: "critical"
+          block: true
+          scan_pre: true
+          scan_post: true
+        - name: "credit_card"
+          pattern: "\\b(?:\\d{4}[-\\s]?){3}\\d{4}\\b"
+          severity: "critical"
+          block: true
+        - name: "email"
+          pattern: "\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b"
+          severity: "medium"
+          redact: true
+          redact_replacement: "[EMAIL REDACTED]"
+        - name: "phone"
+          pattern: "\\b(?:\\+?1[-.]?)?\\(?\\d{3}\\)?[-.]?\\d{3}[-.]?\\d{4}\\b"
+          severity: "medium"
+          redact: true
+          redact_replacement: "[PHONE REDACTED]"
